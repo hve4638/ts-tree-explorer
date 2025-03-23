@@ -35,6 +35,7 @@ describe('TreeNavigate', () => {
         expect(explorer.get('nodir:leaf1')).toBe('-1');
         expect(explorer.get('nodir:leaf2')).toBe('-2');
 
+        expect(explorer.get('')).toBe(null);
         expect(explorer.get('leaf1:leaf1')).toBe(null);
         expect(explorer.get('leaf1:leaf1:leaf1')).toBe(null);
         expect(explorer.get('dir1:leaf1:leaf1')).toBe(null);
@@ -49,6 +50,7 @@ describe('TreeNavigate', () => {
         expect(explorer.walk('nodir:leaf1')?.path).toEqual(['*', 'leaf1']);
         expect(explorer.walk('nodir:leaf2')?.path).toEqual(['**/*']);
         
+        expect(explorer.get('')).toBe(null);
         expect(explorer.walk('leaf1:leaf1')).toBe(null);
         expect(explorer.walk('leaf1:leaf1:leaf1')).toBe(null);
         expect(explorer.walk('dir1:leaf1:leaf1')).toBe(null);

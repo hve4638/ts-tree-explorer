@@ -6,9 +6,17 @@ type Tree<LEAF=any> = {
     [key:string]:Tree|LEAF;
 }
 
-type TreeResult<LEAF=any> = {
+type WalkResult<LEAF=any> = {
     value:LEAF;
     path:string[]
+}
+
+type TraceResult<LEAF=any> = {
+    find:boolean;
+    isLeaf:boolean;
+    value:LEAF|undefined;
+    path:string[]|undefined;
+    tracePath:string[];
 }
 
 type TreeExplorerOptions = {
@@ -44,6 +52,10 @@ type WalkOptions = {
      * (default: false)
      */
     allowIntermediate?:boolean;
+}
+
+type FindOptions = {
+    treePath:string[]
 }
 
 class TreeNavigate<LEAF=any> {
@@ -91,13 +103,19 @@ class TreeNavigate<LEAF=any> {
         return this.walk(path, options)?.value ?? null;
     }
 
-    walk(path:string, options:WalkOptions = {}):TreeResult|null {
+    walk(path:string, options:WalkOptions = {}):WalkResult|null {
+        if (path === '') {
+            if (options.allowIntermediate) {
+                return {
+                    value : this.#tree,
+                    path : []
+                }
+            }
+            return null;
+        }
+
         const keys = path.split(this.#delimiter);
-        const result = (
-            path === ''
-            ? { value : this.#tree, path : [] }
-            : this.#find(keys, this.#tree)
-        );
+        const result = this.#find(keys, this.#tree);
         if (!result) {
             return null;
         }
@@ -120,6 +138,47 @@ class TreeNavigate<LEAF=any> {
         }
     }
 
+    trace(path:string):TraceResult<LEAF> {
+        const keys = path.split(this.#delimiter);
+        const options = { treePath:[] };
+        const walkResult = this.#find(keys, this.#tree, options);
+
+        let find:boolean;
+        let isLeaf:boolean;
+        let value:LEAF|undefined;
+
+        if (walkResult) {
+            const leaf = walkResult.value;
+            find = true;
+
+            if (TreeNavigate.#isPrimitiveLeaf(leaf)) {
+                isLeaf = true;
+                value = leaf;
+            }
+            else if (TreeNavigate.#isObjectLeaf<LEAF>(leaf)) {
+                isLeaf = true;
+                value = leaf.value;
+            }
+            else {
+                isLeaf = false;
+                value = leaf;
+            }
+        }
+        else {
+            find = false;
+            isLeaf = false;
+            value = undefined
+        }
+        
+        return {
+            find,
+            isLeaf,
+            value,
+            path : walkResult?.path,
+            tracePath : options.treePath
+        }
+    }
+
     /**
      * 재귀적으로 트리 탐색
      * 경로를 찾으면 해당 경로를 반환하고, 찾지 못하면 null을 반환
@@ -127,27 +186,30 @@ class TreeNavigate<LEAF=any> {
      * @param keys delimiter로 split된 path, 소비될 수 있음
      * @param tree
      */
-    #find(keys:string[], tree:Tree):null|TreeResult {
-        if (keys.length === 0) {
+    #find(keys:string[], tree:Tree, options:FindOptions={ treePath:[] }):null|WalkResult {
+        const { treePath } = options;
+        const key = keys.shift();
+        if (key == undefined) {
             return {
                 value : tree,
                 path : []
-            } as TreeResult;
+            } as WalkResult;
         }
         if (typeof tree !== 'object' || TreeNavigate.#isObjectLeaf(tree)) {
             return null;
         }
 
-        const key = keys.splice(0, 1)[0];
         if (key in tree) {
-            const result = this.#find(keys, tree[key]);
+            treePath.push(key);
+            const result = this.#find(keys, tree[key], options);
             if (result) {
                 return { value : result.value, path : [key, ...result.path] };
             }
         }
         else if (this.#allowWildcard) {
             if ('*' in tree) {
-                const result = this.#find(keys, tree['*']);
+                treePath.push(key);
+                const result = this.#find(keys, tree['*'], options);
                 if (result) {
                     return { value : result.value, path : ['*', ...result.path] };
                 }
@@ -157,7 +219,7 @@ class TreeNavigate<LEAF=any> {
                 return {
                     value : tree['**/*'],
                     path : ['**/*']
-                } as TreeResult;
+                } as WalkResult;
             }
         }
 
