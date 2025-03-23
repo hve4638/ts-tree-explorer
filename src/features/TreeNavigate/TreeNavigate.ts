@@ -1,5 +1,6 @@
-import { TREE_LEAF_FLAG } from "./data";
-import { Leaf } from "./type";
+import { TreeNavigateError } from '@/errors';
+import { TREE_LEAF_FLAG } from './data';
+import { Leaf } from './type';
 
 type Tree<LEAF=any> = {
     [key:string]:Tree|LEAF;
@@ -10,56 +11,88 @@ type TreeResult<LEAF=any> = {
     path:string[]
 }
 
+type TreeExplorerOptions = {
+    /**
+     * Delimiter for path.
+     * 
+     * (deafult: '.')
+     */
+    delimiter?:string;
+    /**
+     * Allow using wildcard(*) in path.
+     * 
+     * (default: false)
+     */
+    allowWildcard?:boolean;
+    /**
+     * Allow using recursive wildcard(**\/*) in path.
+     * 
+     * When allowWildcard is false, this option is ignored.
+     * 
+     * (default: true)
+     */
+    allowRecursiveWildcard?:boolean;
+}
+
 type WalkOptions = {
     /**
-     * 트리에서 중간 노드를 반환하도록 허용
+     * Allow returning intermediate nodes from the tree
+     * 
+     * If true, it returns the intermediate node when the path is not a leaf node.
+     * If false, it returns null when the path is not a leaf node.
+     * 
+     * (default: false)
      */
     allowIntermediate?:boolean;
 }
 
-class TreeExplorer<LEAF=any> {
+class TreeNavigate<LEAF=any> {
     #tree:Tree<LEAF> = {};
-    #splitChar:string = '.';
-    #allowWildcard:boolean = true;
+    #delimiter:string = '.';
+    #allowWildcard:boolean = false;
+    #allowRecursiveWildcard:boolean = true;
 
-    static from<LEAF>(tree:Tree<LEAF>, splitChar:string='.', allowWildcard:boolean = true):TreeExplorer {
-        const explorer = new TreeExplorer<LEAF>();
+    private constructor() {}
 
-        // structedClone() 은 fast-deep-equal에서 제대로 비교할 수 없는 문제가 존재하므로 대신 JSON.parse(JSON.stringify())를 사용
-        explorer.#tree = JSON.parse(JSON.stringify(tree));
-        explorer.#splitChar = splitChar;
-        explorer.#allowWildcard = allowWildcard;
+    static from<LEAF>(tree:Tree<LEAF>, options:TreeExplorerOptions = {}):TreeNavigate {
+        const explorer = new TreeNavigate<LEAF>();
+
+        explorer.#tree = tree;
+        explorer.#delimiter = options.delimiter ?? '.';
+        explorer.#allowWildcard = options.allowWildcard ?? false;
+        explorer.#allowRecursiveWildcard = options.allowRecursiveWildcard ?? true;
 
         return explorer;
     }
 
-    private constructor() {}
-
-    subtree(path:string):TreeExplorer<LEAF> {
-        const keys = path.split(this.#splitChar);
+    subtree(path:string):TreeNavigate<LEAF> {
+        const keys = path.split(this.#delimiter);
         const result = this.#find(keys, this.#tree);
         if (!result) {
-            throw new Error(`Path '${path}' does not exist`);
+            throw new TreeNavigateError(`Path '${path}' does not exist`);
         }
-        if (TreeExplorer.#isPrimitiveLeaf(result.value) || TreeExplorer.#isObjectLeaf(result.value)) {
-            throw new Error(`Path '${path}' is not a subtree`);
+        if (TreeNavigate.#isPrimitiveLeaf(result.value) || TreeNavigate.#isObjectLeaf(result.value)) {
+            throw new TreeNavigateError(`Path '${path}' is not a subtree`);
         }
 
         const subtree = result.path.reduce((tree, key) => tree[key] as Tree<LEAF>, this.#tree);
-        const explorer = new TreeExplorer<LEAF>();
+        const explorer = new TreeNavigate<LEAF>();
         explorer.#tree = subtree;
-        explorer.#splitChar = this.#splitChar;
+        explorer.#delimiter = this.#delimiter;
         explorer.#allowWildcard = this.#allowWildcard;
 
         return explorer;
     }
 
+    /**
+     * 트리를 탐색하며 
+     */
     get(path:string, options?:WalkOptions):LEAF|null {
         return this.walk(path, options)?.value ?? null;
     }
 
     walk(path:string, options:WalkOptions = {}):TreeResult|null {
-        const keys = path.split(this.#splitChar);
+        const keys = path.split(this.#delimiter);
         const result = (
             path === ''
             ? { value : this.#tree, path : [] }
@@ -70,10 +103,10 @@ class TreeExplorer<LEAF=any> {
         }
 
         const leaf = result.value;
-        if (TreeExplorer.#isPrimitiveLeaf(leaf)) {
+        if (TreeNavigate.#isPrimitiveLeaf(leaf)) {
             return result;
         }
-        else if (TreeExplorer.#isObjectLeaf<LEAF>(leaf)) {
+        else if (TreeNavigate.#isObjectLeaf<LEAF>(leaf)) {
             return {
                 value : leaf.value,
                 path : result.path
@@ -101,7 +134,7 @@ class TreeExplorer<LEAF=any> {
                 path : []
             } as TreeResult;
         }
-        if (typeof tree !== 'object') {
+        if (typeof tree !== 'object' || TreeNavigate.#isObjectLeaf(tree)) {
             return null;
         }
 
@@ -120,7 +153,7 @@ class TreeExplorer<LEAF=any> {
                 }
             }
             
-            if ('**/*' in tree) {
+            if (this.#allowRecursiveWildcard && '**/*' in tree) {
                 return {
                     value : tree['**/*'],
                     path : ['**/*']
@@ -140,4 +173,4 @@ class TreeExplorer<LEAF=any> {
     }
 }
 
-export default TreeExplorer;
+export default TreeNavigate;

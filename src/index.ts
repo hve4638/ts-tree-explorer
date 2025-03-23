@@ -1,7 +1,9 @@
-import TreeExplorer, {
+export {
     leaf,
     TREE_LEAF_FLAG,
     type Leaf
-} from '@/features/TreeExplorer';
+} from '@/features/TreeNavigate';
 
-export default TreeExplorer;
+import TreeNavigate from '@/features/TreeNavigate';
+
+export default TreeNavigate;
