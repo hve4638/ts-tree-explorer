@@ -1,6 +1,6 @@
 {
-  "name": "tree-explorer",
-  "version": "0.1.0",
+  "name": "tree-navigate",
+  "version": "0.2.0",
   "main": "./dist/bundle.cjs",
   "module": "./dist/bundle.mjs",
   "types": "./dist/index.d.ts",
@@ -12,6 +12,9 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "keywords": [
+    "tree"
+  ],
   "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.2",
@@ -31,6 +34,7 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "test": "jest"
+    "test": "jest",
+    "coverage": "jest --coverage"
   }
 }
