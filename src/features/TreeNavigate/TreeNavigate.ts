@@ -12,11 +12,19 @@ type WalkResult<LEAF=any> = {
 }
 
 type TraceResult<LEAF=any> = {
-    find:boolean;
-    isLeaf:boolean;
-    value:LEAF|undefined;
-    path:string[]|undefined;
+    find:false;
+    isLeaf:false;
+    value:undefined;
+    nodePath:string[];
     tracePath:string[];
+    untracePath:string[];
+} | {
+    find:true;
+    isLeaf:boolean;
+    value:LEAF;
+    nodePath:string[];
+    tracePath:string[];
+    untracePath:string[];
 }
 
 type TreeExplorerOptions = {
@@ -143,14 +151,12 @@ class TreeNavigate<LEAF=any> {
         const options = { treePath:[] };
         const walkResult = this.#find(keys, this.#tree, options);
 
-        let find:boolean;
         let isLeaf:boolean;
-        let value:LEAF|undefined;
+        let value:LEAF;
 
         if (walkResult) {
             const leaf = walkResult.value;
-            find = true;
-
+            
             if (TreeNavigate.#isPrimitiveLeaf(leaf)) {
                 isLeaf = true;
                 value = leaf;
@@ -163,19 +169,26 @@ class TreeNavigate<LEAF=any> {
                 isLeaf = false;
                 value = leaf;
             }
+        
+        
+            return {
+                find : true,
+                isLeaf,
+                value,
+                nodePath : walkResult?.path ?? [],
+                tracePath : options.treePath,
+                untracePath : keys
+            }
         }
         else {
-            find = false;
-            isLeaf = false;
-            value = undefined
-        }
-        
-        return {
-            find,
-            isLeaf,
-            value,
-            path : walkResult?.path,
-            tracePath : options.treePath
+            return {
+                find : false,
+                isLeaf : false,
+                value: undefined,
+                nodePath : [],
+                tracePath : options.treePath,
+                untracePath : keys
+            }
         }
     }
 
@@ -196,11 +209,12 @@ class TreeNavigate<LEAF=any> {
             } as WalkResult;
         }
         if (typeof tree !== 'object' || TreeNavigate.#isObjectLeaf(tree)) {
+            keys.unshift(key);
             return null;
         }
+        treePath.push(key);
 
         if (key in tree) {
-            treePath.push(key);
             const result = this.#find(keys, tree[key], options);
             if (result) {
                 return { value : result.value, path : [key, ...result.path] };
@@ -208,7 +222,6 @@ class TreeNavigate<LEAF=any> {
         }
         else if (this.#allowWildcard) {
             if ('*' in tree) {
-                treePath.push(key);
                 const result = this.#find(keys, tree['*'], options);
                 if (result) {
                     return { value : result.value, path : ['*', ...result.path] };

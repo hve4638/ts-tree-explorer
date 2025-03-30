@@ -29,8 +29,9 @@ describe('trace', () => {
                 find: true,
                 isLeaf: true,
                 value: '1',
-                path: ['leaf1'],
-                tracePath: ['leaf1']
+                nodePath: ['leaf1'],
+                tracePath: ['leaf1'],
+                untracePath: [],
             }
         ],
         [
@@ -39,8 +40,9 @@ describe('trace', () => {
                 find: true,
                 isLeaf: false,
                 value: { leaf1 : '2', },
-                path: ['dir1'],
-                tracePath: ['dir1']
+                nodePath: ['dir1'],
+                tracePath: ['dir1'],
+                untracePath: [],
             }
         ],
         [
@@ -49,8 +51,20 @@ describe('trace', () => {
                 find: false,
                 isLeaf: false,
                 value: undefined,
-                path: undefined,
-                tracePath: ['dir1', 'leaf1']
+                nodePath: [],
+                tracePath: ['dir1', 'leaf1'],
+                untracePath: ['leaf2'],
+            }
+        ],
+        [
+            'dir1:leaf1:leaf2:leaf3:leaf4',
+            {
+                find: false,
+                isLeaf: false,
+                value: undefined,
+                nodePath: [],
+                tracePath: ['dir1', 'leaf1'],
+                untracePath: ['leaf2', 'leaf3', 'leaf4'],
             }
         ],
         [
@@ -59,8 +73,9 @@ describe('trace', () => {
                 find: true,
                 isLeaf: true,
                 value: '-1',
-                path: ['*', 'leaf1'],
-                tracePath: ['dir', 'leaf1']
+                nodePath: ['*', 'leaf1'],
+                tracePath: ['dir', 'leaf1'],
+                untracePath: [],
             }
         ],
     ]
